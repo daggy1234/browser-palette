@@ -2,6 +2,8 @@ import "./src/styles.css";
 
 // palette.js
 
+// NOTE: Chrome extensions cannot inject content scripts into chrome://newtab, chrome://*, or some other special pages due to browser security restrictions. This is a browser limitation, not a bug in this extension. See: https://developer.chrome.com/docs/extensions/mv3/declare_permissions/#host-permissions
+
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("searchInput");
   const resultsList = document.getElementById("resultsList");
@@ -193,6 +195,12 @@ document.addEventListener("DOMContentLoaded", () => {
         icon: "🔖",
       },
       {
+        id: "cmd_devtools",
+        title: "Open DevTools",
+        actionDetail: "open_devtools",
+        icon: "🛠️",
+      },
+      {
         id: "cmd_settings",
         title: "Open Settings",
         actionDetail: "open_settings",
@@ -286,14 +294,19 @@ document.addEventListener("DOMContentLoaded", () => {
         // Optional: Icon for command
         if (item.icon) {
           const iconSpan = document.createElement("span");
-          iconSpan.className = "mr-2 text-lg"; // Style for emoji/icon
+          iconSpan.className =
+            "flex items-center justify-center w-6 h-6 rounded bg-blue-500/10 text-blue-500 text-lg font-semibold mr-2";
           iconSpan.textContent = item.icon;
           li.appendChild(iconSpan);
         }
-        const commandTitle = document.createElement("span");
-        commandTitle.className = "tab-title"; // Reuse tab title style for consistency
+        const textDiv = document.createElement("div");
+        textDiv.className = "tab-info flex-grow overflow-hidden";
+        const commandTitle = document.createElement("div");
+        commandTitle.className = "tab-title truncate text-sm";
         commandTitle.textContent = item.title;
-        li.appendChild(commandTitle);
+        textDiv.appendChild(commandTitle);
+        textDiv.appendChild(document.createElement("div")); // For alignment with website name
+        li.appendChild(textDiv);
       }
 
       li.addEventListener("click", () => {
@@ -359,6 +372,30 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           window.open(chrome.runtime.getURL("settings.html"), "_blank");
         }
+        closePalette();
+        return;
+      }
+      // Handle new tab, bookmarks, history, devtools
+      if (selectedItem.actionDetail === "new_tab") {
+        chrome.runtime.sendMessage({ action: "openNewTab" });
+        closePalette();
+        return;
+      }
+      if (selectedItem.actionDetail === "show_bookmarks") {
+        chrome.runtime.sendMessage({ action: "openBookmarks" });
+        closePalette();
+        return;
+      }
+      if (selectedItem.actionDetail === "show_history") {
+        chrome.runtime.sendMessage({ action: "openHistory" });
+        closePalette();
+        return;
+      }
+      if (selectedItem.actionDetail === "open_devtools") {
+        // Not possible to programmatically open DevTools, show alert
+        alert(
+          "Due to browser security, extensions cannot open DevTools automatically. Use Cmd+Opt+I or F12."
+        );
         closePalette();
         return;
       }

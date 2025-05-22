@@ -5,45 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Palette Settings</title>
     <link rel="stylesheet" href="./palette.css" />
+    <script src="https://cdn.jsdelivr.net/npm/hotkeys-js@3.12.0/dist/hotkeys.min.js"></script>
   </head>
   <body
-    class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center"
+    class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center"
   >
-    <div class="bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md">
-      <h1 class="text-2xl font-bold mb-6">Palette Settings</h1>
-      <form id="settingsForm" class="space-y-6">
+    <div
+      class="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-800"
+    >
+      <h1 class="text-3xl font-bold mb-8 text-center">Palette Settings</h1>
+      <form id="settingsForm" class="space-y-8">
         <div>
-          <label for="tabSwitcherShortcut" class="block mb-2 font-medium"
+          <label
+            for="tabSwitcherShortcut"
+            class="block mb-2 font-semibold text-gray-300"
             >Tab Switcher Shortcut</label
           >
-          <input
-            id="tabSwitcherShortcut"
-            name="tabSwitcherShortcut"
-            type="text"
-            class="w-full px-3 py-2 rounded bg-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g. Command+K"
-          />
+          <div
+            id="tabSwitcherShortcutDisplay"
+            class="flex items-center gap-2"
+          ></div>
+          <button
+            type="button"
+            id="tabSwitcherCapture"
+            class="mt-2 px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm"
+          >
+            Set Shortcut
+          </button>
         </div>
         <div>
-          <label for="commandPaletteShortcut" class="block mb-2 font-medium"
+          <label
+            for="commandPaletteShortcut"
+            class="block mb-2 font-semibold text-gray-300"
             >Command Palette Shortcut</label
           >
-          <input
-            id="commandPaletteShortcut"
-            name="commandPaletteShortcut"
-            type="text"
-            class="w-full px-3 py-2 rounded bg-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g. Command+Shift+P"
-          />
+          <div
+            id="commandPaletteShortcutDisplay"
+            class="flex items-center gap-2"
+          ></div>
+          <button
+            type="button"
+            id="commandPaletteCapture"
+            class="mt-2 px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm"
+          >
+            Set Shortcut
+          </button>
         </div>
         <button
           type="submit"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-lg"
         >
           Save
         </button>
       </form>
-      <div id="status" class="mt-4 text-green-400 text-center hidden">
+      <div
+        id="status"
+        class="mt-6 text-green-400 text-center hidden text-lg font-semibold"
+      >
         Settings saved!
       </div>
     </div>

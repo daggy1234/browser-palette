@@ -1,6 +1,8 @@
 import { copyFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
+import { readFile, writeFile } from "fs/promises";
+import pkg from "./package.json" assert { type: "json" };
 
 async function copyFiles() {
   const filesToCopy = [
@@ -10,7 +12,7 @@ async function copyFiles() {
     "icons/icon48.png",
     "icons/icon128.png",
     "settings.html",
-    "settings.js",
+    "palette.html",
   ];
 
   if (!existsSync("dist")) {
@@ -32,4 +34,19 @@ async function copyFiles() {
   }
 }
 
+async function updateManifestVersion(manifestPath, outPath) {
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.version = pkg.version;
+  await writeFile(outPath, JSON.stringify(manifest, null, 2));
+}
+
+async function buildManifests() {
+  await updateManifestVersion("manifest.json", "dist/manifest.json");
+  await updateManifestVersion(
+    "manifest.firefox.json",
+    "dist/manifest.firefox.json"
+  );
+}
+
 copyFiles().catch(console.error);
+await buildManifests();

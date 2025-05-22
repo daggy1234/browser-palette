@@ -192,6 +192,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       return true;
 
+    case "openNewTab":
+      chrome.tabs.create({});
+      sendResponse({ success: true });
+      return true;
+    case "openBookmarks":
+      chrome.tabs.create({ url: "chrome://bookmarks/" });
+      sendResponse({ success: true });
+      return true;
+    case "openHistory":
+      chrome.tabs.create({ url: "chrome://history/" });
+      sendResponse({ success: true });
+      return true;
+
     default:
       return false;
   }
