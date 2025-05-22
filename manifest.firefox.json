@@ -3,7 +3,7 @@
   "name": "Quick Command Palette",
   "version": "1.0.0",
   "description": "A command palette for your browser, including a tab switcher.",
-  "permissions": ["tabs", "activeTab", "storage", "commands"],
+  "permissions": ["tabs", "activeTab", "storage"],
   "background": {
     "scripts": ["background.js"]
   },
@@ -15,22 +15,6 @@
     "open_in_tab": true
   },
   "options_page": "settings.html",
-  "commands": {
-    "open-tab-switcher": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
-      },
-      "description": "Open Tab Switcher"
-    },
-    "open-general-palette": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+M",
-        "mac": "Command+Shift+M"
-      },
-      "description": "Open General Command Palette"
-    }
-  },
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

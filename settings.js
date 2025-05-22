@@ -10,6 +10,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const status = document.getElementById("status");
   const form = document.getElementById("settingsForm");
 
+  // New DOM elements for Blocked Sites
+  const blockedSiteInput = document.getElementById("blockedSiteInput");
+  const addBlockedSiteBtn = document.getElementById("addBlockedSiteBtn");
+  const blockedSitesListDiv = document.getElementById("blockedSitesList");
+
   // Set your desired defaults here
   const DEFAULT_TAB_SWITCHER = /Firefox/i.test(navigator.userAgent)
     ? "Cmd+Shift+K"
@@ -20,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let tabSwitcherShortcut = "";
   let commandPaletteShortcut = "";
+  let blockedSites = []; // Initialize blockedSites array
 
   function renderShortcutPill(displayEl, shortcut) {
     displayEl.innerHTML = "";
@@ -105,4 +111,70 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   loadShortcuts();
+
+  // --- Blocked Sites Functionality ---
+
+  function renderBlockedSites() {
+    blockedSitesListDiv.innerHTML = ""; // Clear current list
+    blockedSites.forEach((site) => {
+      const siteDiv = document.createElement("div");
+      siteDiv.className =
+        "flex justify-between items-center p-2 bg-gray-800 rounded-md";
+
+      const siteSpan = document.createElement("span");
+      siteSpan.className = "text-gray-300";
+      siteSpan.textContent = site;
+
+      const removeButton = document.createElement("button");
+      removeButton.className =
+        "text-red-500 hover:text-red-700 font-semibold remove-blocked-site-btn";
+      removeButton.textContent = "Remove";
+      removeButton.dataset.site = site; // Store site URL in data attribute
+
+      removeButton.addEventListener("click", (event) => {
+        const siteToRemove = event.target.dataset.site;
+        blockedSites = blockedSites.filter((s) => s !== siteToRemove);
+        chrome.storage.sync.set({ blockedSites: blockedSites }, () => {
+          renderBlockedSites(); // Re-render the list
+          // Optionally, show a status message for removal
+        });
+      });
+
+      siteDiv.appendChild(siteSpan);
+      siteDiv.appendChild(removeButton);
+      blockedSitesListDiv.appendChild(siteDiv);
+    });
+  }
+
+  function loadBlockedSites() {
+    chrome.storage.sync.get(["blockedSites"], (data) => {
+      blockedSites = data.blockedSites || [];
+      renderBlockedSites();
+    });
+  }
+
+  addBlockedSiteBtn.addEventListener("click", () => {
+    const newSite = blockedSiteInput.value.trim();
+    if (newSite === "") {
+      // Optionally, show an error message to the user
+      console.warn("Blocked site input is empty.");
+      return;
+    }
+    if (blockedSites.includes(newSite)) {
+      // Optionally, show an error message (e.g., site already exists)
+      console.warn(`Site "${newSite}" is already in the blocked list.`);
+      blockedSiteInput.value = ""; // Clear input even if duplicate
+      return;
+    }
+
+    blockedSites.push(newSite);
+    chrome.storage.sync.set({ blockedSites: blockedSites }, () => {
+      renderBlockedSites();
+      blockedSiteInput.value = ""; // Clear input field
+      // Optionally, show a success message
+    });
+  });
+
+  // Initial load of blocked sites
+  loadBlockedSites();
 });

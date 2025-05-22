@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Palette Settings</title>
     <link rel="stylesheet" href="./palette.css" />
+    <!-- Ensure TailwindCSS is linked, typically via a <link> to a compiled CSS file or a <script> for CDN -->
+    <!-- For this exercise, we assume Tailwind is globally available or palette.css includes Tailwind directives -->
   </head>
   <body
     class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center"
   >
     <div
-      class="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-800"
+      class="bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md" /* Removed border-gray-800 as not specified for this step */
     >
       <h1 class="text-3xl font-bold mb-8 text-center">Palette Settings</h1>
       <form id="settingsForm" class="space-y-8">
@@ -22,7 +24,7 @@
           >
           <div
             id="tabSwitcherShortcutDisplay"
-            class="flex items-center gap-2"
+            class="flex items-center gap-2 p-3 rounded-md bg-gray-800 border border-gray-700 min-h-[40px]" /* Added styling for display area */
           ></div>
           <button
             type="button"
@@ -40,7 +42,7 @@
           >
           <div
             id="commandPaletteShortcutDisplay"
-            class="flex items-center gap-2"
+            class="flex items-center gap-2 p-3 rounded-md bg-gray-800 border border-gray-700 min-h-[40px]" /* Added styling for display area */
           ></div>
           <button
             type="button"
@@ -52,16 +54,39 @@
         </div>
         <button
           type="submit"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-lg"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-lg" /* Class per instruction */
         >
           Save
         </button>
       </form>
       <div
         id="status"
-        class="mt-6 text-green-400 text-center hidden text-lg font-semibold"
+        class="mt-6 text-green-400 text-center hidden text-lg font-semibold" /* Class per instruction */
       >
         Settings saved!
+      </div>
+
+      <!-- Blocked Sites Section -->
+      <h2 class="text-2xl font-semibold mt-8 mb-4 text-gray-200">
+        Blocked Sites
+      </h2>
+      <div class="flex gap-2 mb-4">
+        <input
+          type="text"
+          id="blockedSiteInput"
+          placeholder="Enter site URL (e.g., example.com)"
+          class="flex-grow p-2 rounded bg-gray-800 border border-gray-700 text-gray-200 focus:ring-blue-500 focus:border-blue-500"
+        />
+        <button
+          type="button"
+          id="addBlockedSiteBtn"
+          class="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white font-semibold"
+        >
+          Add
+        </button>
+      </div>
+      <div id="blockedSitesList" class="space-y-2">
+        <!-- Blocked sites will be listed here by settings.js -->
       </div>
     </div>
     <script src="settings.js"></script>

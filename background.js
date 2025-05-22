@@ -1,102 +1,179 @@
 // background.js
 
+// Default shortcut values
+const DEFAULT_TAB_SWITCHER = /Firefox/i.test(navigator.userAgent)
+  ? "Cmd+Shift+K"
+  : "Cmd+K";
+const DEFAULT_COMMAND_PALETTE = /Firefox/i.test(navigator.userAgent)
+  ? "Cmd+Shift+P"
+  : "Cmd+Shift+P";
+
 chrome.runtime.onInstalled.addListener(() => {
   console.info("Quick Command Palette extension installed/updated.");
+  // You could potentially load and cache shortcuts here if preferred
+  // Or set initial default values in storage if they don't exist
+  // chrome.storage.sync.get(['tabSwitcherShortcut', 'commandPaletteShortcut'], (data) => {
+  //   if (!data.tabSwitcherShortcut) {
+  //     chrome.storage.sync.set({ tabSwitcherShortcut: DEFAULT_TAB_SWITCHER });
+  //   }
+  //   if (!data.commandPaletteShortcut) {
+  //     chrome.storage.sync.set({ commandPaletteShortcut: DEFAULT_COMMAND_PALETTE });
+  //   }
+  // });
 });
 
-chrome.commands.onCommand.addListener(async (command, tab) => {
-  console.info(
-    `Command received: ${command} for tab ID: ${tab ? tab.id : "undefined"}`
-  );
+// Refactored command execution logic
+async function executeCommandInTab(tab, mode) {
+  if (!tab || typeof tab.id === "undefined") {
+    console.warn("executeCommandInTab called without a valid tab. Ignoring.");
+    return;
+  }
+  const tabId = tab.id;
 
-  if (command === "open-tab-switcher" || command === "open-general-palette") {
-    if (!tab || typeof tab.id === "undefined") {
-      console.warn("Command received without a valid tab. Ignoring.");
-      return;
-    }
+  try {
+    console.debug(`Sending 'isAlive' to tab ${tabId}`);
+    const response = await chrome.tabs.sendMessage(tabId, {
+      action: "isAlive",
+    });
 
-    const mode = command === "open-tab-switcher" ? "tab-switcher" : "general";
-    const tabId = tab.id;
-
-    try {
-      console.debug(`Sending 'isAlive' to tab ${tabId}`);
-      const response = await chrome.tabs.sendMessage(tabId, {
-        action: "isAlive",
-      });
-
-      if (response && response.status === "ready") {
-        console.debug(
-          `Content script alive in tab ${tabId}. Sending 'togglePalette'.`
-        );
-        await chrome.tabs.sendMessage(tabId, {
-          action: "togglePalette",
-          mode: mode,
-        });
-      } else {
-        // No response or not ready, implies need for full initialization
-        console.info(
-          `Content script in tab ${tabId} not ready or unresponsive. Proceeding to inject.`
-        );
-        throw new Error("Content script not ready or unresponsive"); // This will be caught by outer catch
-      }
-    } catch (e) {
-      console.warn(
-        `'isAlive' check failed for tab ${tabId} (Error: ${e.message}). Attempting to inject script.`
+    if (response && response.status === "ready") {
+      console.debug(
+        `Content script alive in tab ${tabId}. Sending 'togglePalette'.`
       );
-      try {
-        console.debug(`Injecting content.js into tab ${tabId}`);
-        if (typeof chrome.scripting !== "undefined") {
-          // Chrome
-          await chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            files: ["content.js"],
-          });
-        } else if (chrome.tabs && chrome.tabs.executeScript) {
-          // Firefox
-          await chrome.tabs.executeScript(tabId, { file: "content.js" });
-        }
-        console.info(
-          `Successfully injected content.js into tab ${tabId}. Sending 'initPalette'.`
-        );
-        await chrome.tabs.sendMessage(tabId, {
-          action: "initPalette",
-          mode: mode,
+      await chrome.tabs.sendMessage(tabId, {
+        action: "togglePalette",
+        mode: mode,
+      });
+    } else {
+      console.info(
+        `Content script in tab ${tabId} not ready or unresponsive. Proceeding to inject.`
+      );
+      throw new Error("Content script not ready or unresponsive");
+    }
+  } catch (e) {
+    console.warn(
+      `'isAlive' check failed for tab ${tabId} (Error: ${e.message}). Attempting to inject script.`
+    );
+    try {
+      console.debug(`Injecting content.js into tab ${tabId}`);
+      if (typeof chrome.scripting !== "undefined") {
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ["content.js"],
         });
-        console.debug(`'initPalette' sent to tab ${tabId}`);
-      } catch (injectionError) {
-        console.error(
-          `Failed to inject script or initialize palette in tab ${tabId}:`,
-          injectionError.message
+      } else if (chrome.tabs && chrome.tabs.executeScript) {
+        await chrome.tabs.executeScript(tabId, { file: "content.js" });
+      }
+      console.info(
+        `Successfully injected content.js into tab ${tabId}. Sending 'initPalette'.`
+      );
+      await chrome.tabs.sendMessage(tabId, {
+        action: "initPalette",
+        mode: mode,
+      });
+      console.debug(`'initPalette' sent to tab ${tabId}`);
+    } catch (injectionError) {
+      console.error(
+        `Failed to inject script or initialize palette in tab ${tabId}:`,
+        injectionError.message
+      );
+      if (
+        tab.url &&
+        (tab.url.startsWith("chrome://") ||
+          tab.url.startsWith("edge://") ||
+          tab.url.startsWith("file://"))
+      ) {
+        console.warn(
+          `Cannot inject scripts into special URL: ${tab.url}. This is expected for security reasons.`
         );
-        if (
-          tab.url &&
-          (tab.url.startsWith("chrome://") ||
-            tab.url.startsWith("edge://") ||
-            tab.url.startsWith("file://"))
-        ) {
-          console.warn(
-            `Cannot inject scripts into special URL: ${tab.url}. This is expected for security reasons.`
-          );
-        } else if (
-          injectionError.message.includes("No tab with id") ||
-          injectionError.message.includes("The tab was closed")
-        ) {
-          console.warn(
-            `Tab ${tabId} was closed or became invalid during operation.`
-          );
-        } else if (
-          injectionError.message.includes("Cannot access contents of the page")
-        ) {
-          console.warn(
-            `Cannot access contents of the page at ${tab.url}. This might be due to permissions or a protected page.`
-          );
-        }
+      } else if (
+        injectionError.message.includes("No tab with id") ||
+        injectionError.message.includes("The tab was closed")
+      ) {
+        console.warn(
+          `Tab ${tabId} was closed or became invalid during operation.`
+        );
+      } else if (
+        injectionError.message.includes("Cannot access contents of the page")
+      ) {
+        console.warn(
+          `Cannot access contents of the page at ${tab.url}. This might be due to permissions or a protected page.`
+        );
       }
     }
   }
+}
+
+// Remove or comment out the old chrome.commands.onCommand.addListener
+/*
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  // ... old logic was here ...
 });
+*/
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // New handler for dynamically configured shortcuts
+  if (request.action === "executeCommandBasedOnShortcut") {
+    const pressedShortcut = request.shortcut;
+    // console.log("Shortcut message received from content script:", pressedShortcut, "from tab", sender.tab.id);
+
+    chrome.storage.sync.get(
+      ["tabSwitcherShortcut", "commandPaletteShortcut", "blockedSites"],
+      (data) => {
+        const tabSwitcherShortcut =
+          data.tabSwitcherShortcut || DEFAULT_TAB_SWITCHER;
+        const commandPaletteShortcut =
+          data.commandPaletteShortcut || DEFAULT_COMMAND_PALETTE;
+        const blockedSites = data.blockedSites || [];
+
+        let modeToExecute = null;
+        if (pressedShortcut === tabSwitcherShortcut) {
+          modeToExecute = "tab-switcher";
+        } else if (pressedShortcut === commandPaletteShortcut) {
+          modeToExecute = "general";
+        }
+
+        if (modeToExecute && sender.tab && sender.tab.id) {
+          const tabUrl = sender.tab.url;
+          let isBlocked = false;
+          if (tabUrl) { // Ensure tabUrl is available
+            for (const site of blockedSites) {
+              if (site && tabUrl.includes(site)) { // Ensure site string is not empty/null
+                isBlocked = true;
+                console.log(
+                  `Site ${tabUrl} is blocked by rule ${site}. Command not executed.`
+                );
+                break;
+              }
+            }
+          }
+
+
+          if (isBlocked) {
+            sendResponse({ status: "blocked" });
+          } else {
+            console.log(
+              `Executing command for mode ${modeToExecute} in tab ${sender.tab.id} due to shortcut ${pressedShortcut}`
+            );
+            executeCommandInTab(sender.tab, modeToExecute)
+              .then(() => {
+                sendResponse({ status: "executed" });
+              })
+              .catch((error) => {
+                console.error("Error executing command in tab:", error);
+                sendResponse({ status: "error", message: error.message });
+              });
+          }
+        } else {
+          // No matching shortcut or invalid sender/tab
+          sendResponse({ status: "no_match_or_invalid_sender" });
+        }
+      }
+    );
+    return true; // Indicate async response because of chrome.storage.sync.get
+  }
+
+  // Existing onMessage handlers
   switch (request.action) {
     case "closePalette":
       if (sender.tab && sender.tab.id) {

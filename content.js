@@ -304,3 +304,118 @@ window.addEventListener("message", (event) => {
 });
 
 console.info("Quick Command Palette content script loaded and ready.");
+
+// --- Global Shortcut Listener ---
+window.addEventListener('keydown', (event) => {
+  // Ignore keydowns if the palette is currently visible and the event is within the palette iframe
+  if (paletteVisible && event.target && event.target.id === 'quick-command-palette-iframe' && event.target.contentWindow === window.frames.namedItem('quick-command-palette-iframe')) {
+    // console.log("Keydown event inside the palette iframe, content script ignoring.");
+    return;
+  }
+  
+  // 5. Consider Active Input Fields
+  if (event.target.isContentEditable ||
+      event.target.tagName === 'INPUT' ||
+      event.target.tagName === 'TEXTAREA' ||
+      event.target.tagName === 'SELECT') {
+    // console.log("Keydown in input/editable field, content script ignoring for global shortcuts.");
+    return;
+  }
+
+  // 2. Construct Shortcut String
+  let keys = [];
+  if (event.metaKey) keys.push("Cmd");
+  if (event.ctrlKey) keys.push("Ctrl");
+  if (event.altKey) keys.push("Alt");
+  if (event.shiftKey) keys.push("Shift");
+
+  // Normalize key name, matching settings.js logic
+  let keyName = event.key;
+  if (keyName.length === 1) {
+    keyName = keyName.toUpperCase();
+  } else {
+    // For special keys like "ArrowUp", "Enter", "F1", etc.
+    // Check if it's a key we want to include.
+    // Exclude modifiers if they are the primary key (e.g. just pressing Shift)
+    const upperKey = keyName.toUpperCase();
+    if (["META", "CONTROL", "ALT", "SHIFT", "OS"].includes(upperKey)) {
+      // If only modifiers are pressed, or it's a standalone modifier key event
+      if (keys.length === 0 || keys.every(k => ["Cmd","Ctrl","Alt","Shift"].includes(k))) {
+         // console.log("Only modifiers pressed or standalone modifier key, not forming shortcut.");
+         return;
+      }
+    }
+  }
+  
+  // Add the actual key if it's not a modifier already part of the 'keys' array by its name
+  // (e.g., if event.key is "Shift", we don't want "Shift+Shift")
+  const normalizedKeyName = keyName.length === 1 ? keyName : event.key; // Use original case for multi-char keys like 'ArrowUp'
+  const upperKeyName = normalizedKeyName.toUpperCase();
+
+  if (!["CMD", "META", "CONTROL", "CTRL", "ALT", "SHIFT", "OS"].includes(upperKeyName)) {
+    keys.push(normalizedKeyName);
+  } else if (keys.length === 0 && ["CMD", "META", "CONTROL", "CTRL", "ALT", "SHIFT", "OS"].includes(upperKeyName)) {
+    // This case handles if a modifier key itself is the event.key but no other non-modifier key is pressed.
+    // However, our initial modifier checks (event.metaKey etc.) should generally cover this.
+    // This mainly prevents adding a modifier name if it's the *only* key pressed and it somehow wasn't caught.
+    return;
+  }
+
+
+  // Filter out shortcuts that are only modifiers (e.g. "Cmd" or "Shift")
+  // or if a modifier is also the main key (e.g. "Shift+Shift" should not happen)
+  const nonModifierKeyExists = keys.some(k => !["Cmd", "Ctrl", "Alt", "Shift"].includes(k));
+  if (!nonModifierKeyExists && keys.length > 0) {
+      // console.log("Shortcut consists only of modifiers, ignoring:", keys.join("+"));
+      return;
+  }
+  
+  if (keys.length === 0) {
+    // console.log("No keys for shortcut formed.");
+    return; 
+  }
+
+  const pressedShortcut = keys.join("+");
+  // console.log("Potential shortcut pressed in content.js:", pressedShortcut);
+
+  // If a potential shortcut is formed (more than just a single character without modifiers,
+  // or multiple keys including modifiers)
+  if (pressedShortcut && keys.length > 1 || (keys.length === 1 && !["Cmd", "Ctrl", "Alt", "Shift"].includes(keys[0]) && keys[0].length > 1) ) {
+    // Send message to background script
+    // console.log(`Sending shortcut to background: ${pressedShortcut}`);
+    
+    // 3. Prevent Default Action (Proactive approach)
+    // We prevent default if we are sending *any* potential shortcut to background.
+    // Background will decide if it's a *valid extension* shortcut.
+    // This is to avoid race conditions with webpage handlers for common shortcuts (e.g. Cmd+K for search)
+    event.preventDefault();
+    event.stopPropagation();
+
+    chrome.runtime.sendMessage(
+      { action: "executeCommandBasedOnShortcut", shortcut: pressedShortcut },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          // console.error("Error sending shortcut message:", chrome.runtime.lastError.message);
+          // If there was an error, the shortcut likely wasn't processed,
+          // but we've already called preventDefault. This is a trade-off.
+        } else if (response) {
+          if (response.status === "executed") {
+            // console.log("Shortcut executed by background script:", pressedShortcut);
+          } else if (response.status === "blocked") {
+            // console.log("Shortcut blocked by background script:", pressedShortcut);
+          } else if (response.status === "no_match_or_invalid_sender") {
+            // console.log("Shortcut not recognized or invalid sender by background script:", pressedShortcut);
+            // If not matched by our extension, we have already prevented default.
+            // This is a conscious decision to prioritize extension shortcuts.
+          } else {
+            // console.log("Shortcut not executed by background, response:", response, "Shortcut:", pressedShortcut);
+          }
+        } else {
+            // console.log("No response from background for shortcut:", pressedShortcut);
+        }
+      }
+    );
+  } else {
+    // console.log("Not a valid shortcut to send:", pressedShortcut);
+  }
+});
