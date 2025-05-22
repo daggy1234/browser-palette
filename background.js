@@ -45,10 +45,16 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
       );
       try {
         console.debug(`Injecting content.js into tab ${tabId}`);
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ["content.js"],
-        });
+        if (typeof chrome.scripting !== "undefined") {
+          // Chrome
+          await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ["content.js"],
+          });
+        } else if (chrome.tabs && chrome.tabs.executeScript) {
+          // Firefox
+          await chrome.tabs.executeScript(tabId, { file: "content.js" });
+        }
         console.info(
           `Successfully injected content.js into tab ${tabId}. Sending 'initPalette'.`
         );
@@ -208,6 +214,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     default:
       return false;
   }
+});
+
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab.id) return;
+  chrome.tabs.sendMessage(tab.id, {
+    action: "togglePalette",
+    mode: "general",
+  });
 });
 
 // Note on Firefox compatibility:

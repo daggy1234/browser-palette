@@ -5,12 +5,10 @@
   "description": "A command palette for your browser, including a tab switcher.",
   "permissions": ["tabs", "activeTab", "scripting", "storage", "commands"],
   "background": {
-    "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Open Command Palette",
-    "default_popup": "settings.html"
+    "default_title": "Open Command Palette"
   },
   "options_ui": {
     "page": "settings.html",
@@ -20,8 +18,8 @@
   "commands": {
     "open-tab-switcher": {
       "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
+        "default": "Ctrl+K",
+        "mac": "Command+K"
       },
       "description": "Open Tab Switcher"
     },

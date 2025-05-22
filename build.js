@@ -2,7 +2,10 @@ import { copyFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { readFile, writeFile } from "fs/promises";
-import pkg from "./package.json" assert { type: "json" };
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json");
 
 async function copyFiles() {
   const filesToCopy = [

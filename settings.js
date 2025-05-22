@@ -10,6 +10,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const status = document.getElementById("status");
   const form = document.getElementById("settingsForm");
 
+  // Set your desired defaults here
+  const DEFAULT_TAB_SWITCHER = /Firefox/i.test(navigator.userAgent)
+    ? "Cmd+Shift+K"
+    : "Cmd+K";
+  const DEFAULT_COMMAND_PALETTE = /Firefox/i.test(navigator.userAgent)
+    ? "Cmd+Shift+P"
+    : "Cmd+Shift+P";
+
   let tabSwitcherShortcut = "";
   let commandPaletteShortcut = "";
 
@@ -27,18 +35,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Load settings
-  chrome.storage.sync.get(
-    ["tabSwitcherShortcut", "commandPaletteShortcut"],
-    (data) => {
-      tabSwitcherShortcut = data.tabSwitcherShortcut || "";
-      commandPaletteShortcut = data.commandPaletteShortcut || "";
-      renderShortcutPill(tabSwitcherDisplay, tabSwitcherShortcut);
-      renderShortcutPill(commandPaletteDisplay, commandPaletteShortcut);
-    }
-  );
+  function loadShortcuts() {
+    chrome.storage.sync.get(
+      ["tabSwitcherShortcut", "commandPaletteShortcut"],
+      (data) => {
+        tabSwitcherShortcut = data.tabSwitcherShortcut || DEFAULT_TAB_SWITCHER;
+        commandPaletteShortcut =
+          data.commandPaletteShortcut || DEFAULT_COMMAND_PALETTE;
+        renderShortcutPill(tabSwitcherDisplay, tabSwitcherShortcut);
+        renderShortcutPill(commandPaletteDisplay, commandPaletteShortcut);
+      }
+    );
+  }
 
-  function listenForShortcut(setter, displayEl) {
+  function listenForShortcut(setter, displayEl, keyName) {
     let listening = true;
     displayEl.innerHTML =
       '<span class="text-gray-400">Press your shortcut...</span>';
@@ -50,13 +60,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.ctrlKey) keys.push("Ctrl");
       if (e.altKey) keys.push("Alt");
       if (e.shiftKey) keys.push("Shift");
-      // Only add the main key if it's not a modifier
       if (!["Meta", "Control", "Alt", "Shift"].includes(e.key)) {
         keys.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
       }
       const shortcut = keys.join("+");
       setter(shortcut);
-      renderShortcutPill(displayEl, shortcut);
+      chrome.storage.sync.set({ [keyName]: shortcut }, () => {
+        loadShortcuts();
+      });
       listening = false;
       window.removeEventListener("keydown", handler, true);
     }
@@ -64,14 +75,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   tabSwitcherBtn.addEventListener("click", () => {
-    listenForShortcut((shortcut) => {
-      tabSwitcherShortcut = shortcut;
-    }, tabSwitcherDisplay);
+    listenForShortcut(
+      (shortcut) => {
+        tabSwitcherShortcut = shortcut;
+      },
+      tabSwitcherDisplay,
+      "tabSwitcherShortcut"
+    );
   });
   commandPaletteBtn.addEventListener("click", () => {
-    listenForShortcut((shortcut) => {
-      commandPaletteShortcut = shortcut;
-    }, commandPaletteDisplay);
+    listenForShortcut(
+      (shortcut) => {
+        commandPaletteShortcut = shortcut;
+      },
+      commandPaletteDisplay,
+      "commandPaletteShortcut"
+    );
   });
 
   form.addEventListener("submit", (e) => {
@@ -84,4 +103,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     );
   });
+
+  loadShortcuts();
 });

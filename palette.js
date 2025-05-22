@@ -216,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderResults(items, type) {
     resultsList.innerHTML = "";
-    selectedIndex = -1;
+    selectedIndex = items.length > 0 ? 0 : -1; // Select first item if any
 
     if (items.length === 0) {
       resultsList.innerHTML = `<li class="p-4 text-center text-gray-400 rounded-md">No ${
@@ -314,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       resultsList.appendChild(li);
     });
-    updateSelectionUI(); // Initial call to ensure no selection highlight
+    updateSelectionUI(); // Initial call to ensure selection highlight
   }
 
   function updateSelectionUI() {

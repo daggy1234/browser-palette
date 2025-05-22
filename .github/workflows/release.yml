@@ -13,10 +13,14 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Build Chrome Zip
-        run: cd dist && zip -r ../chrome-extension.zip .
+        run: |
+          rm -f dist/manifest.json
+          cp manifest.json dist/manifest.json
+          cd dist && zip -r ../chrome-extension.zip .
       - name: Build Firefox Zip
         run: |
-          cp dist/manifest.firefox.json dist/manifest.json
+          rm -f dist/manifest.json
+          cp manifest.firefox.json dist/manifest.json
           cd dist && zip -r ../firefox-extension.zip .
       - name: Upload Chrome Artifact
         uses: actions/upload-artifact@v4
