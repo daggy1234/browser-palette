@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Command Palette</title>
-    <script src="./tailwind.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -42,57 +41,27 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* Subtle separator */
       }
       .search-input {
-        background-color: transparent; /* Fully transparent input background */
-        color: #f3f4f6; /* Light text for input */
-        border: none; /* No border for cleaner look */
-        font-size: 1.375rem; /* Larger font size (22px) */
-        line-height: 1.75rem; /* Corresponding line height */
-        padding: 12px 8px; /* Vertical padding, minimal horizontal */
-        font-weight: 500; /* Medium weight for input text */
+        background: transparent;
+        border: none;
+        outline: none;
+        color: #e5e7eb;
+        font-size: 1rem;
+        width: 100%;
+        padding: 4px 8px;
       }
       .search-input::placeholder {
-        color: #6b7280; /* Subtler placeholder color */
-        font-weight: 500;
-      }
-      .search-input:focus {
-        outline: none; /* Remove default focus outline */
-        box-shadow: none; /* Remove Tailwind focus shadow if any */
+        color: #6b7280;
       }
       .results-list {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.2) transparent; /* Subtle scrollbar */
-      }
-      .results-list::-webkit-scrollbar {
-        width: 6px;
-      }
-      .results-list::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .results-list::-webkit-scrollbar-thumb {
-        background-color: rgba(255, 255, 255, 0.2);
-        border-radius: 3px;
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 8px;
       }
       .result-item {
-        /* border-bottom: 1px solid rgba(255, 255, 255, 0.05); Remove individual borders for cleaner list */
-        transition: background-color 0.15s ease-out; /* Smooth hover transition */
-      }
-      .result-item:last-child {
-        border-bottom: none;
+        transition: background-color 0.15s ease;
       }
       .result-item.selected {
-        background-color: rgba(
-          79,
-          70,
-          229,
-          0.8
-        ); /* Tailwind indigo-600 with some transparency */
-        color: white;
-      }
-      .result-item.selected .tab-title {
-        color: white;
-      }
-      .result-item.selected .website-name {
-        color: #d1d5db; /* Lighter URL color on selection */
+        background-color: rgba(255, 255, 255, 0.1);
       }
       .result-item:not(.selected):hover {
         background-color: rgba(
@@ -138,8 +107,6 @@
         font-size: 0.75rem; /* text-xs */
         color: #6b7280; /* text-gray-500 */
       }
-
-      /* Style for the search icon (optional, if you add one) */
       .search-icon-container {
         color: #6b7280; /* Match placeholder color */
       }
@@ -148,11 +115,6 @@
   <body class="overflow-hidden">
     <div id="palette-root" class="palette-container">
       <div class="search-input-container flex items-center">
-        <!-- <div class="search-icon-container pl-2 pr-1">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                </svg>
-            </div> -->
         <input
           type="text"
           id="searchInput"
@@ -165,15 +127,7 @@
         id="resultsList"
         class="results-list flex-grow overflow-y-auto p-2 space-y-1"
       >
-        <!-- Example Tab Item Structure (for reference in palette.js):
-            <li class="result-item px-3 py-2.5 rounded-lg flex items-center space-x-3" data-tab-id="123">
-                <img src="favicon.png" alt="" class="fav-icon">
-                <div class="tab-info flex-grow overflow-hidden">
-                    <div class="tab-title truncate text-sm">Tab Title Goes Here</div>
-                    <div class="website-name truncate text-xs">WebsiteName.com</div>
-                </div>
-            </li>
-            -->
+        <!-- Results will be dynamically inserted here -->
       </ul>
 
       <div class="footer-bar p-2 text-center">
@@ -182,6 +136,6 @@
       </div>
     </div>
 
-    <script src="palette.js"></script>
+    <script type="module" src="./palette.js"></script>
   </body>
 </html>

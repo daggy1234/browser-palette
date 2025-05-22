@@ -1,3 +1,5 @@
+import "./src/styles.css";
+
 // palette.js
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -27,60 +29,104 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function closePalette() {
-    window.parent.postMessage({ action: "closePalette" }, "*");
+    window.parent.postMessage({ action: "closePalette" }, "*"); // No origin check needed for posting to parent
   }
 
   window.addEventListener("message", (event) => {
-    if (
-      event.source !== window.parent &&
-      event.origin !== chrome.runtime.getURL("").slice(0, -1)
-    ) {
-      // Check origin for security
-      // console.warn("Message from unexpected source:", event.origin, "Expected:", chrome.runtime.getURL('').slice(0,-1));
-      // return; // Be careful with strict origin checks in extensions if not fully tested
+    // Critical security check: only accept messages from the parent window (content script)
+    if (event.source !== window.parent) {
+      console.warn(
+        "Palette.js: Ignoring message from non-parent source:",
+        event.source,
+        "Origin:",
+        event.origin
+      );
+      return;
     }
 
-    const { action, mode: newMode } = event.data;
+    // The primary security check `event.source === window.parent` is crucial for iframes.
+    // Origin checking for the parent (content script) is tricky as it inherits the page's origin.
+    // Trust is based on the content script itself being secure and validating data if needed.
+
+    const { action, mode: newMode, ...data } = event.data; // Destructure for clarity
+    console.debug("Palette received message:", event.data);
 
     if (action === "focusInput") {
-      searchInput.focus();
-      if (newMode) {
+      searchInput.focus(); // Always ensure focus
+      if (newMode && newMode !== currentMode) {
+        console.info(
+          `Mode changed via focusInput: from ${currentMode} to ${newMode}`
+        );
         currentMode = newMode;
         updateModeIndicatorAndPlaceholder();
-        loadInitialDataForMode();
+        searchInput.value = ""; // Clear input on mode change for a fresh start
+        loadInitialDataForMode(); // Reload data for the new mode
+      } else if (newMode && newMode === currentMode) {
+        console.debug(
+          `Mode confirmed via focusInput: ${currentMode}. Input focused.`
+        );
+        // Data is typically loaded by `loadInitialDataForMode` if mode changes.
+        // If data could become stale even without a mode change and needs refresh on focus, add logic here.
       }
-    } else if (action === "updateMode") {
-      currentMode = newMode;
-      updateModeIndicatorAndPlaceholder();
-      searchInput.value = "";
-      loadInitialDataForMode();
     }
+    // Note: The 'updateMode' message type from older versions is now handled by 'focusInput'
+    // when 'newMode' is present and different.
   });
 
+  /**
+   * Clears current results and loads new data based on the current palette mode.
+   * Typically called when the mode changes or the palette is first initialized.
+   */
   function loadInitialDataForMode() {
+    console.info(`Loading initial data for mode: ${currentMode}`);
+    resultsList.innerHTML = ""; // Clear previous results from the list
+    filteredResults = []; // Reset the array of filtered results
+    selectedIndex = -1; // Reset the selection index
+
     if (currentMode === "tab-switcher") {
-      fetchAndRenderTabs("");
+      fetchAndRenderTabs(""); // Fetch all tabs for tab-switcher mode
     } else {
-      renderGeneralCommands("");
+      renderGeneralCommands(""); // Render predefined general commands
     }
   }
 
+  /**
+   * Fetches open tabs from the background script and renders them.
+   * @param {string} query - The search query to filter tabs (initially empty).
+   */
   async function fetchAndRenderTabs(query) {
-    if (currentMode !== "tab-switcher") return;
+    if (currentMode !== "tab-switcher") {
+      console.warn(
+        "fetchAndRenderTabs called but currentMode is not 'tab-switcher'. Aborting."
+      );
+      return;
+    }
+    console.debug("Fetching tabs for query:", query);
     try {
+      // chrome.runtime.sendMessage returns a Promise when used with async/await.
+      // Errors (like disconnected port) will cause the promise to reject and be caught.
       const response = await chrome.runtime.sendMessage({
         action: "queryTabs",
       });
+
+      // It's good practice to check response structure, even if errors are caught.
       if (response && response.tabs) {
         allTabs = response.tabs;
         filterAndDisplayTabs(query);
       } else {
+        console.warn(
+          "No tabs found or unexpected response structure from 'queryTabs'. Response:",
+          response
+        );
         resultsList.innerHTML =
           '<li class="p-4 text-center text-gray-500">No tabs found or error loading.</li>';
       }
     } catch (error) {
-      console.error("Error fetching tabs:", error);
-      resultsList.innerHTML = `<li class="p-4 text-center text-gray-500">Error: ${error.message}.</li>`;
+      console.error(
+        "Error during 'queryTabs' sendMessage or processing:",
+        error.message
+      );
+      resultsList.innerHTML = `<li class="p-4 text-center text-gray-500">Error fetching tabs: ${error.message}.</li>`;
     }
   }
 
@@ -133,7 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
         title: "Open New Tab",
         actionDetail: "new_tab",
         icon: "➕",
-      }, // Example with emoji icon
+      },
       {
         id: "cmd_history",
         title: "Show History",
@@ -145,6 +191,12 @@ document.addEventListener("DOMContentLoaded", () => {
         title: "Show Bookmarks",
         actionDetail: "show_bookmarks",
         icon: "🔖",
+      },
+      {
+        id: "cmd_settings",
+        title: "Open Settings",
+        actionDetail: "open_settings",
+        icon: "⚙️",
       },
     ];
     const lowerQuery = query.toLowerCase();
@@ -265,20 +317,51 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /**
+   * Handles the selection of an item from the results list.
+   * @param {object} selectedItem - The tab or command object that was selected.
+   * @param {string} type - 'tab' or 'command'.
+   */
   function handleSelection(selectedItem, type) {
-    // Renamed item to selectedItem
-    if (!selectedItem) return;
+    if (!selectedItem) {
+      console.warn("handleSelection called with no selectedItem.");
+      return;
+    }
+
+    console.debug(`Handling selection: Type - ${type}, Item -`, selectedItem);
 
     if (type === "tab") {
       chrome.runtime.sendMessage(
         { action: "switchToTab", tabId: selectedItem.id },
         (response) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              "Error switching tab:",
+              chrome.runtime.lastError.message
+            );
+            return;
+          }
           if (response && response.success) {
             closePalette();
+          } else {
+            console.warn(
+              "switchToTab was not successful or no response.",
+              response
+            );
           }
         }
       );
     } else if (type === "command") {
+      if (selectedItem.actionDetail === "open_settings") {
+        // Open settings page in a new tab
+        if (chrome.runtime.openOptionsPage) {
+          chrome.runtime.openOptionsPage();
+        } else {
+          window.open(chrome.runtime.getURL("settings.html"), "_blank");
+        }
+        closePalette();
+        return;
+      }
       window.parent.postMessage(
         { action: "performGeneralAction", details: selectedItem },
         "*"
@@ -293,47 +376,61 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       renderGeneralCommands(query);
     }
-    // Reset selection on new input, but don't clear if user is just arrowing
-    if (e.inputType && e.inputType !== "insertTextFromPaste") {
-      // Heuristic: don't reset if navigating
-      // selectedIndex = -1; // This was causing issues with arrow keys after typing
-      // updateSelectionUI();
-    }
+    // Consider resetting selectedIndex to -1 on new typed input,
+    // but be careful not to interfere with arrow key navigation.
+    // The current behavior (not resetting selectedIndex here) is often preferred.
+    // if (e.inputType && e.inputType.startsWith("insert")) {
+    //   selectedIndex = -1;
+    //   updateSelectionUI();
+    // }
   });
 
   searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closePalette();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (selectedIndex >= 0 && selectedIndex < filteredResults.length) {
-        handleSelection(
-          filteredResults[selectedIndex],
-          currentMode === "tab-switcher" ? "tab" : "command"
-        );
-      } else if (filteredResults.length > 0 && selectedIndex === -1) {
-        // If no arrow selection, take first item
-        handleSelection(
-          filteredResults[0],
-          currentMode === "tab-switcher" ? "tab" : "command"
-        );
-      }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (filteredResults.length > 0) {
+      return; // Prevent other keydown actions for Escape
+    }
+
+    if (filteredResults.length > 0) {
+      if (e.key === "Enter") {
+        e.preventDefault(); // Prevent default form submission if any
+        const itemToSelect =
+          selectedIndex >= 0 && selectedIndex < filteredResults.length
+            ? filteredResults[selectedIndex]
+            : // If no arrow key selection yet, Enter on the first item
+            selectedIndex === -1 && filteredResults.length > 0
+            ? filteredResults[0]
+            : null;
+        if (itemToSelect) {
+          handleSelection(
+            itemToSelect,
+            currentMode === "tab-switcher" ? "tab" : "command"
+          );
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault(); // Prevent page scrolling
         selectedIndex = (selectedIndex + 1) % filteredResults.length;
         updateSelectionUI();
-      }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (filteredResults.length > 0) {
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault(); // Prevent page scrolling
         selectedIndex =
           (selectedIndex - 1 + filteredResults.length) % filteredResults.length;
         updateSelectionUI();
       }
+    } else if (e.key === "Enter") {
+      // No results, and Enter is pressed
+      e.preventDefault(); // Prevent any default action
+      console.debug("Enter pressed with no results to select.");
+      // Optionally, provide visual feedback like a slight shake or a message
     }
   });
 
-  loadInitialDataForMode();
-  searchInput.focus();
+  // Initial setup when the DOM is fully loaded
+  loadInitialDataForMode(); // Load tabs or commands based on the initial mode
+  searchInput.focus(); // Focus the search input field
+  console.info(`Palette.js initialized. Mode: ${currentMode}.`);
+
+  // Inform the parent window (content_script.js) that the palette is ready.
+  // This is a good practice for inter-frame communication.
+  window.parent.postMessage({ action: "paletteReady", mode: currentMode }, "*");
 });
