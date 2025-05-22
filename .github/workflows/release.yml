@@ -19,17 +19,18 @@ jobs:
           cp dist/manifest.firefox.json dist/manifest.json
           cd dist && zip -r ../firefox-extension.zip .
       - name: Upload Chrome Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: chrome-extension
           path: chrome-extension.zip
       - name: Upload Firefox Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: firefox-extension
           path: firefox-extension.zip
       - name: Create Release
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             chrome-extension.zip
